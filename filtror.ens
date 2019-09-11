@@ -1,0 +1,984 @@
+; Titulación: Grado en Ingeniería Informática. Plan 2009.
+; Materia:    Estructura de Computadores.
+; Archivo:    filtror.ens
+;
+; Autor 1: Iñigo Ramírez Tirado
+; Autor 2: Felipe León Fernández
+;
+; ----------------------------------------------------------------------
+; 
+;
+; ---------------------------------------------> MACROS
+;
+
+LEA:    MACRO	(reg,ETIQ)
+        or     	reg,r0,low(ETIQ)
+        or.u   	reg,reg,high(ETIQ)
+        ENDMACRO
+
+DBNZ:   MACRO	(reg,ETIQ)
+        sub    	reg,reg,1
+        cmp    	r3,reg,r0
+        bb0    	eq,r3,ETIQ
+        ENDMACRO
+
+PUSH:   MACRO	(reg)
+        subu   	r30,r30,4
+        st     	reg,r30,r0
+        ENDMACRO
+
+POP:    MACRO	(reg)
+        ld     	reg,r30,r0
+        addu   	r30,r30,4
+        ENDMACRO
+
+LOAD:	MACRO	(reg,ETIQ)
+		LEA		(reg,ETIQ)
+		ld 		reg,reg,r0
+		ENDMACRO
+
+		
+;
+; ---------------------------------------------> VARIABLES ESTÁTICAS
+;		
+				
+				org		0
+nF:				data	3
+		
+;
+; ---------------------------------------------> DATOS PARA PRUEBAS
+;
+				org		2000
+
+; Datos para: nFiltrados
+;
+
+oper0:			data	0
+operpos:		data	2
+operneg:		data	-2
+
+
+; Datos para: ActualizaFiltro
+;
+
+MFiltroAF:		data	5, 	5,	5
+				data	6, 	6,	6
+				data	15, 15,	15
+
+ModMFiltro12:	data	1,	2
+ModMFiltro42:	data	4,	2
+
+
+; Datos para: Comp
+;
+
+Imagen11:		data	4, 4
+				data	0x01010101
+				data	0x01010101
+				data	0x01010101
+				data	0x01010101
+
+Imagen21:		data	4, 4
+				data	0x01010101
+				data	0x01010101
+				data	0x01010101
+				data	0x01010101
+
+Imagen12:		data	4, 4
+				data	0x01010101
+				data	0x01010101
+				data	0x01010101
+				data	0x01010101
+				
+Imagen22:		data	4, 4
+				data	0x04030201
+				data	0x04030201
+				data	0x04030201
+				data	0x04030201
+
+Imagen13:		data	2, 4
+				data	0x01010101
+				data	0x01010101
+				
+Imagen23:		data	2, 4
+				data	0x04040404
+				data	0x04040404	
+
+Imagen14:		data	4, 8
+				data	0x00000000, 0x00000000
+				data	0x00000000, 0x00002100
+				data	0x00000000, 0x00000000
+				data	0x00000000, 0x00000000
+				
+Imagen24:		data	4, 8
+				data	0x00000000, 0x00000000
+				data	0x00000000, 0x00000000
+				data	0x00000000, 0x00000000
+				data	0x00000000, 0x00000000
+
+				
+; Datos para: ValorPixel
+;
+
+SubImg1:		data 	0x01010101
+				data 	0x01010101
+				data 	0x01
+				
+MFiltroVPPos:	data	0, 0, 0
+				data 	0, 1, 0
+				data 	0, 0, 0
+			
+MFiltroVPNeg1:	data 	0, 0, 0
+				data 	0, -2, 0
+				data 	0, 0, 0
+				
+MFiltroVPNeg2:	data 	-1, -1, -1
+				data 	-1,  0, -1
+				data 	-1, -1, -1
+
+				
+; Datos para: SubMatriz
+;
+
+ImagenSM:		data	4, 4
+				data 	0x40404040
+				data	0x40202040
+				data	0x40202040
+				data	0x40404040
+
+SubImg:			data 	0x01010101, 0x01010101, 0x01
+
+iSM1:			data 	0
+jSM1:			data 	0	
+		
+iSM2:			data 	1
+jSM2:			data 	1	
+		
+
+; Datos para: FilPixel
+;
+
+ImagenFP1:		data 	5, 5
+				data 	0x44332211, 0x03020155
+				data 	0x22210504, 0x31252423
+				data 	0x35343332, 0x44434241
+				data 	0x00000045
+				
+				;11  22  33  44  55
+				;01  02  03  04  05
+				;21  22	 23	 24	 25
+				;31	 32	 33	 34	 35
+				;41	 42	 43	 44	 45
+
+ImagenFP2:    	data  	4, 8
+				data  	0x11111111, 0x22222222
+				data  	0x11111110, 0x22222222
+				data  	0x33333333, 0x44444444
+				data  	0x00000000, 0x00000000
+
+MFiltroFP:		data 	1, 0, 0
+				data 	0, 1, 0
+				data 	0, 0, 1
+
+iFP:			data 	2
+jFP:			data 	3
+	
+		
+; Datos para: Filtro
+;
+
+ImagenFiltro1:	data 	4, 8
+				data 	0x04030201, 0x07060504
+				data 	0x14134211, 0x17168514
+				data 	0x24232221, 0x27262574
+				data 	0x34333231, 0x37363534
+
+				;01 02 03 04 04 05 06 07
+				;11 42 13 14 14 85 16 17
+				;21 22 23 24 74 25 26 27
+				;31 32 33 34 34 35 36 37
+				
+ImFiltrada:		res 	40
+
+MFiltroFiltro:	data 	0, -3, 0
+				data 	0, 4, 0
+				data 	0, 0, 0
+
+
+; Datos para: FiltRec
+;
+
+As:				data 	0xAAAAAAAA
+
+ImagenInFR1:	data 	4, 4
+				data 	0x04030201 
+				data 	0x0D0E0F10 
+				data 	0x05040302 
+				data 	0x23222120
+				
+				;01 02 03 04
+				;10 0F 0E 0D
+				;02 03 04 05
+				;20 21 22 23
+				
+ImagenOutFR1:	res 	24
+				data 	0xAAAAAAAA
+				data	0xAAAAAAAA
+				
+MFiltroFR1:		data 	1, 1, 1
+				data 	1, 0, 1
+				data 	1, 1, 1
+				
+ModMFiltroFR1:	data	1, 1 
+
+NCambiosFR1:	data	40
+
+
+
+ImagenInFR2:	data 	4, 4
+				data 	0x04030201 
+				data 	0x0D0E0F10 
+				data 	0x05040302 
+				data 	0x23222120
+				
+				;01 02 03 04
+				;10 0F 0E 0D
+				;02 03 04 05
+				;20 21 22 23
+				
+ImagenOutFR2:	res 	24
+				data 	0xAAAAAAAA
+				data	0xAAAAAAAA
+				
+MFiltroFR2:		data 	10, 10, 10
+				data 	10, 00, 10
+				data 	10, 10, 10
+				
+ModMFiltroFR2:	data	1, 2 
+
+NCambiosFR2:	data	0
+				
+				
+				
+				
+				
+				
+ImagenInFR3:	data 	5, 5
+				data 	0x000A000A
+				data	0x0000000A
+				data	0x000A0000
+				data	0x000A000A
+				data	0x00000000
+				data	0x000A000A
+				data	0x0000000A
+				
+				;0A 00 0A 00 0A
+				;00 00 00 00 00
+				;0A 00 0A 00 0A
+				;00 00 00 00 00
+				;0A 00 0A 00 0A
+				
+ImagenOutFR3:	res		36
+				data 	0xAAAAAAAA
+				data	0xAAAAAAAA
+				
+MFiltroFR3:		data 	0,  0,  0
+				data 	-2, 2, -2
+				data 	0,  0,  0
+
+ModMFiltroFR3:	data	10, 8
+
+NCambiosFR3:	data	1
+
+
+ImagenInFR4:	data 4, 8
+				data 0xFF0201FF, 0xFF0403FF
+				data 0xFF0605FF, 0xFF0807FF
+				data 0xFF0605FF, 0xFF0807FF
+				data 0xFF0201FF, 0xFF0403FF
+				
+ImagenOutFR4:	res		40
+				data 	0xAAAAAAAA
+				data	0xAAAAAAAA
+				
+MFiltroFR4:		data 	1, 1, 1
+				data 	1, 0, 1
+				data 	1, 1, 1
+
+ModMFiltroFR4:	data	4, 2
+
+NCambiosFR4:	data	0
+
+
+		
+				
+;
+; ---------------------------------------------> PROGRAMAS LLAMANTES
+;
+
+				org    	10000
+
+; Programa principal: nFiltrados 
+;
+
+PPALNFil0:		LEA		(r30,60000)
+				LOAD	(r10,oper0)
+				PUSH	(r10)
+				bsr		nFiltrados
+				stop	
+				
+PPALNFilPos:	LEA		(r30,60000)
+				LOAD	(r10,operpos)
+				PUSH	(r10)
+				bsr		nFiltrados
+				stop
+			
+PPALNFilNeg:	LEA		(r30,60000)
+				LOAD	(r10,operneg)
+				PUSH	(r10)
+				bsr		nFiltrados
+				stop
+
+				
+; Programa principal: ActualizaFiltro 
+;
+
+PPALActFil12:	LEA		(r30,60000)
+				LEA		(r10,MFiltroAF)
+				LEA		(r11,ModMFiltro12)
+				PUSH	(r11)
+				PUSH	(r10)
+				bsr		ActualizaFiltro
+				stop
+				
+PPALActFil42:	LEA		(r30,60000)
+				LEA		(r10,MFiltroAF)
+				LEA		(r11,ModMFiltro42)
+				PUSH	(r11)
+				PUSH	(r10)
+				bsr		ActualizaFiltro
+				stop
+
+				
+; Programa principal: Comp		
+;
+
+PPALComp1:		LEA		(r30,60000)
+				LEA		(r5,Imagen11)
+				LEA		(r6,Imagen21)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		Comp
+				stop
+
+PPALComp2:		LEA		(r30,60000)
+				LEA		(r5,Imagen12)
+				LEA		(r6,Imagen22)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		Comp
+				stop
+				
+PPALComp3:		LEA		(r30,60000)
+				LEA		(r5,Imagen13)
+				LEA		(r6,Imagen23)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		Comp
+				stop
+
+PPALComp4:		LEA		(r30,60000)
+				LEA		(r5,Imagen14)
+				LEA		(r6,Imagen24)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		Comp
+				stop
+			
+
+; Programa principal: ValorPixel 
+;
+
+PPALVP1:		LEA		(r30,60000)
+				LEA		(r5,SubImg1)
+				LEA		(r6,MFiltroVPPos)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		ValorPixel
+				stop
+			
+PPALVP2:		LEA		(r30,60000)
+				LEA		(r5,SubImg1)
+				LEA		(r6,MFiltroVPNeg1)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		ValorPixel
+				stop
+
+PPALVP3:		LEA		(r30,60000)
+				LEA		(r5,SubImg1)
+				LEA		(r6,MFiltroVPNeg2)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		ValorPixel
+				stop
+
+; Programa principal: SubMatriz
+;
+
+PPALSM1:		LEA		(r30,60000)
+				LEA		(r5,ImagenSM)
+				LEA		(r6,SubImg)
+				LOAD	(r7,iSM1)
+				LOAD	(r8,jSM1)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		SubMatriz
+				stop
+				
+PPALSM2:		LEA		(r30,60000)
+				LEA		(r5,ImagenSM)
+				LEA		(r6,SubImg)
+				LOAD	(r7,iSM2)
+				LOAD	(r8,jSM2)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		SubMatriz
+				stop
+				
+PPALSM3:		LEA		(r30,60000)
+				LEA		(r5,ImagenFP1)
+				LEA		(r6,SubImg)
+				LOAD	(r7,iFP)
+				LOAD	(r8,jFP)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		SubMatriz
+				stop	
+
+				
+; Programa principal: FilPixel
+;
+
+PPALFP1:		LEA		(r30,60000)
+				LEA		(r5,ImagenFP1)
+				LOAD	(r6,iFP)
+				LOAD	(r7,jFP)
+				LEA		(r8,MFiltroFP)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		FilPixel
+				stop
+
+PPALFP2:		LEA		(r30,60000)
+				LEA		(r5,ImagenFP2)
+				LOAD	(r6,iFP)
+				LOAD	(r7,jFP)
+				LEA		(r8,MFiltroFP)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		FilPixel
+				stop
+
+				
+
+; Programa principal: Filtro
+;
+				
+PPALFiltro1:	LEA		(r30,60000)
+				LEA		(r5,ImagenFiltro1)
+				LEA		(r6,ImFiltrada)
+				LEA		(r7,MFiltroFiltro)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr 	Filtro
+				stop
+
+
+; Programa principal: FiltRec
+;
+				
+PPALFiltRec1:	LEA		(r30,60000)
+				LEA		(r5,ImagenInFR1)
+				LEA		(r6,ImagenOutFR1)
+				LEA		(r7,MFiltroFR1)
+				LEA		(r8,ModMFiltroFR1)
+				LOAD	(r9,NCambiosFR1)
+				PUSH	(r9)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		FiltRec
+				stop
+				
+PPALFiltRec2:	LEA		(r30,60000)
+				LEA		(r5,ImagenInFR2)
+				LEA		(r6,ImagenOutFR2)
+				LEA		(r7,MFiltroFR2)
+				LEA		(r8,ModMFiltroFR2)
+				LOAD	(r9,NCambiosFR2)
+				PUSH	(r9)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		FiltRec
+				stop
+				
+PPALFiltRec3:	LEA		(r30,60000)
+				LEA		(r5,ImagenInFR3)
+				LEA		(r6,ImagenOutFR3)
+				LEA		(r7,MFiltroFR3)
+				LEA		(r8,ModMFiltroFR3)
+				LOAD	(r9,NCambiosFR3)
+				PUSH	(r9)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		FiltRec
+				stop
+
+PPALFiltRec4:	LEA		(r30,60000)
+				LEA		(r5,ImagenInFR4)
+				LEA		(r6,ImagenOutFR4)
+				LEA		(r7,MFiltroFR4)
+				LEA		(r8,ModMFiltroFR4)
+				LOAD	(r9,NCambiosFR4)
+				PUSH	(r9)
+				PUSH	(r8)
+				PUSH	(r7)
+				PUSH	(r6)
+				PUSH	(r5)
+				bsr		FiltRec
+				stop					
+				
+				
+;
+; ---------------------------------------------> SUBRUTINAS
+;
+
+					org 	15000
+
+; Subutina: nFiltrados 
+;
+		
+nFiltrados:		PUSH	(r1)
+				ld		r20,r30,4				; Carga a r20 el valor de oper (pila)
+				ld		r29,r0,r0				; Carga a r29 el valor de nF
+				cmp 	r22,r20,0				; Guarda en r22 la comparación de r20 y el inmediato 0
+				bb0		7,r22,nFilNGE			; Si el bit 7(ge) de r22(comparación) es 0 va a NFilNGE
+				st		r20,r0,r0				; Guarda en nF el valor de oper
+				add		r29,r20,r0				; Carga a r29 el valor de oper
+				bsr		FinNFiltrados			; Salto incondicional a FinNFiltrados
+nFilNGE:		sub 	r29,r29,1				; Decrementa nF en 1
+				cmp 	r22,r29,0				; Carga a r22 la comparación de r29 y el inmediato 0
+				bb0		7,r22,nFMenor			; Si el bit 7(ge) de r22(comparación) es 0 va a	nFMenor
+				st		r29,r0,r0				; Guarda en nF el valor de nF-1
+				bsr		FinNFiltrados			; Salto incondicional a FinNFiltrados
+nFMenor:		st		r0,r0,r0				; Guarda en nF el valor 0
+				add		r29,r0,r0				; Carga a r29 el valor 0
+FinNFiltrados:	POP		(r1)
+				jmp		(r1)
+
+
+; Subrutina: ActualizaFiltro 
+;
+
+ActualizaFiltro:PUSH	(r1)
+				ld		r23,r30,4				; Carga a r23 la dirección del parámetro MFiltro
+				ld		r20,r30,8				; Carga dirección numerador a r20
+				ld		r21,r20,4				; Carga denominador a r21
+				ld		r20,r20,0				; Carga numerador a r20
+				cmp		r22,r20,0				; ¿Numerador != 0?
+				bb1		2,r22,FinActFiltro		; Numerador == 0
+				cmp		r22,r21,0				; ¿Denominador != 0?
+				bb1		2,r22,FinActFiltro		; Denominador == 0
+				or		r24,r0,r0				; Contador = 0
+BucleActFiltro:	ld		r25,r23,0				; Carga MFiltro[contador] a r25
+				muls	r25,r25,r20				; Multiplica MFiltro[contador] por numerador
+				divs	r25,r25,r21				; Divide el resultado anterior entre denominador
+				st		r25,r23,r0				; Guarda la operación
+				add		r23,r23,4				; MFiltro[i++]	
+				cmp		r22,r24,8				; ¿Ha hecho 9 iteraciones?
+				add		r24,r24,1				; Contador++
+				bb0		2,r22,BucleActFiltro	; Hacer el bucle
+FinActFiltro:	POP		(r1)
+				jmp		(r1)
+
+					
+; Subrutina: Comp
+;
+
+Comp:			PUSH	(r1)
+				ld		r10,r30,4			; Carga dirección de M(Imagen1)
+				add		r11,r10,4			; Carga dirección de N(Imagen1)
+				add		r12,r10,8			; Carga dirección de MxN(Imagen1)
+				ld		r10,r10,r0			; Carga M
+				ld		r11,r11,r0			; Carga N
+				ld		r13,r30,8			; Carga dirección de M(Imagen2)
+				add		r14,r13,4			; Carga dirección de N(Imagen2)
+				add		r15,r13,8			; Carga dirección de MxN(Imagen2)
+				or		r29,r0,r0			; r29 = 0
+				muls	r20,r10,r11			; r20 = MxN
+				or		r16,r0,r0			; Dif = 0
+				or		r24,r0,1			; Contador = 1
+RecMat:			ld.b	r17,r12,r0			; Carga primer elemento
+				ld.b	r18,r15,r0			; Carga segundo elemento
+				subu	r19,r17,r18			; r17 = Imagen1[ij] - Imagen2[ij]
+				muls	r19,r19,r19			; r17 = (Imagen1[ij] - Imagen2[ij])^2
+				addu	r16,r16,r19			; Dif = Dif + (Imagen1[ij] - Imagen2[ij])^2
+				add		r12,r12,1			; (Dir. elemento Imagen1)++
+				add		r15,r15,1			; (Dir. elemento Imagen2)++
+				cmp		r22,r24,r20			; ¿Contador == MxN?
+				add		r24,r24,1			; Contador++
+				bb0		2,r22,RecMat		; Salto condicional a RecMat
+				divs	r16,r16,r20			; Dif = Dif/MxN
+				or		r29,r16,r0			; r29 = Dif
+				POP		(r1)
+				jmp		(r1)
+				
+			
+; Subrutina: ValorPixel
+;
+			
+ValorPixel:		PUSH	(r1)
+				ld		r10,r30,4			; Carga la dirección(puntero) de SubImg
+				ld		r11,r30,8			; Carga la dirección(puntero) de MFiltro
+				or		r29,r0,r0			; VPixel = 0
+				or		r12,r0,r0			; ACC = 0
+				or		r13,r0,1			; Contador = 1
+				; add		r14,r0,r0
+				; add		r15,r0,r0
+BucleVP:		ld.bu	r14,r10,r0			; Carga elemento[Contador] de SubImg
+				ld		r15,r11,r0			; Carga elemento[Contador] de MFiltro
+				mulu	r16,r14,r15			; r14 = r14*r15
+				add		r12,r12,r16			; ACC = r16
+				add		r10,r10,1			; Puntero(SubImg)++
+				add		r11,r11,4			; Puntero(MFiltro)++
+				cmp		r22,r13,10			; ¿Contador == 10?
+				add		r13,r13,1			; Contador++
+				bb0		2,r22,BucleVP		; Salto condicional a BucleVP
+				add		r29,r12,r0			; VPixel = ACC
+				POP		(r1)
+				jmp		(r1)
+
+			
+; Subrutina: SubMatriz
+;
+			
+SubMatriz:		PUSH	(r1)
+				ld		r10,r30,4			; Carga dirección de M(Imagen)
+				add		r11,r10,4			; Carga dirección de N(Imagen)
+				add		r12,r10,8			; Carga dirección de MxN(Imagen)
+				ld      r10,r10,0			; Carga valor M
+				ld 		r11,r11,0			; Carga valor N
+				ld      r13,r30,8			; Carga dirección de SubImg
+				ld 		r14,r30,12			; Carga valor de i
+				ld 		r15,r30,16			; Carga valor de j 
+				sub		r16,r10,1			; r16 = M-1
+				sub		r17,r11,1			; r17 = N-1
+				add		r18,r0,0			; ContadorImagen = 0
+				add		r19,r0,0			; ContadorSubImg = 0
+				cmp 	r22,r14,0			; ¿i == 0?
+				bb1 	2,r22,SaltoFila		; Salto condicional a SaltoFila
+				cmp		r22,r14,r16			; ¿i == M-1?
+				bb1 	2,r22,SaltoFila		; Salto condicional a SaltoFila
+				cmp		r22,r15,0			; ¿j == 0?
+				bb1 	2,r22,SaltoFila		; Salto condicional a SaltoFila
+				cmp		r22,r15,r17			; ¿j == N-1?
+				bb1 	2,r22,SaltoFila		; Salto condicional a SaltoFila
+				sub		r14,r14,1			; i--
+				sub     r15,r15,1			; j--
+Fila:			cmp		r22,r18,r14 		; ¿ContadorImagen == i-1?
+				bb1		2,r22,ResetCont	    ; Salto condicional a ResetCont
+				add 	r12,r12,r11			; Salto de fila
+				add     r18,r18,1			; ContadorImagen++
+				bsr		Fila				; Salto incondicional a Fila
+ResetCont:		or		r18,r0,r0			; ContadorImagen = 0
+Col:        	cmp 	r22,r18,r15			; ¿ContadorImagen == j-1?
+				bb1 	2,r22,NBorde		; Salto condicional a NBorde
+				add		r12,r12,1			; Salto de columna
+				add     r18,r18,1			; ContadorImagen++
+				bsr    	Col					; Salto incondicional a Col
+NBorde:			ld.b 	r20,r12,0			; Cargo el elemento a introducir de Imagen
+				st.b 	r20,r13,r0			; Elemento SubImg = Elemento Imagen
+				add		r12,r12,1			; Dirección elemento Imagen++
+				add     r13,r13,1			; Dirección elemento SubImg++
+				cmp 	r22,r19,2			; ¿ContadorSubImg == 2?
+				bb1		2,r22,Salto 		; Salto condicional a Salto
+				cmp 	r22,r19,5 			; ¿ContadorSubImg == 5?
+				bb1 	2,r22,Salto			; Salto condicional a Salto
+				cmp    	r22,r19,8			; ¿ContadorSubImg == 8?
+				add 	r19,r19,1			; ContadorSubImg++
+				bb1		2,r22,FinSubMat		; Salto condicional a FinSubMat
+				bsr 	NBorde				; Salto incondicional a NBorde
+Salto: 			sub 	r12,r12,3			; Dirección elemento Imagen - 2
+				add		r12,r12,r11			; Salto de fila 
+				add		r19,r19,1			; ContadorSubImg++
+				bsr 	NBorde				; Salto incondicional a NBorde		
+SaltoFila:		cmp 	r22,r18,r14			; ¿ContadorImagen == i?
+				bb1 	2,r22,ResetCont2	; Salto condicional a ResetCont2
+				add     r12,r12,r11			; Salto de fila
+				add		r18,r18,1			; ContadorImagen++
+				bsr 	SaltoFila	  		; Salto incondicional a SaltoFila
+ResetCont2: 	or		r18,r0,r0			; ContadroImagen = 0
+SaltoCol:		cmp		r22,r18,r15			; ¿ContadorImagen == j?
+				bb1 	2,r22,Borde  		; Salto condicional a Borde
+				add		r12,r12,1			; Salto de columna
+				add		r18,r18,1			; ContadorImagen++
+				bsr 	SaltoCol			; Salto incondicional a SaltoCol
+Borde:			ld.b	r20,r12,0			; Carga Pixel[i,j]
+				st.b 	r20,r13,r0 			; Elemento SubImg = Pixel[i,j]
+				add     r13,r13,1			; Dirección elemento SubImg++
+				cmp    	r22,r19,8			; ¿ContadorSubImg == 8?
+				add		r19,r19,1			; ContadorSubImg++
+				bb0		2,r22,Borde			; Salto condicional a Borde
+FinSubMat:		POP		(r1)
+				jmp		(r1) 
+				
+				
+; Subrutina: FilPixel
+;
+			
+FilPixel:		PUSH	(r1)
+				ld		r02,r30,4			; Carga dirección de M(Imagen)
+				add		r03,r02,4			; Carga dirección de N(Imagen)
+				add		r04,r02,8			; Carga dirección de MxN(Imagen)
+				ld 		r05,r30,8			; Carga valor de i
+				ld 		r06,r30,12			; Carga valor de j
+				ld		r07,r30,16			; Carga la dirección(puntero) de MFiltro
+				PUSH	(r31)				; Guarda puntero a marco de pila del llamante
+				or 		r31,r30,r0			; Crea nuevo marco de pila
+				sub 	r30,r30,12			; Reserva de 3 palabras
+				or		r25,r30,r0
+				PUSH	(r06)				; Apila el valor de j
+				PUSH	(r05)				; Apila el valor de i
+				PUSH	(r25)				; Apila dirección a rellenar SubImg
+				PUSH	(r02)				; Apila dirección de Imagen
+				bsr		SubMatriz			; Salto incondicional a SubMatriz
+				POP		(r02)				; Desapila dirección de Imagen
+				POP		(r25)				; Desapila dirección de SubImg
+				POP		(r05)				; Desapila dirección de i
+				POP		(r06)				; Desapila dirección de j
+				PUSH	(r07)				; Apila dirección de MFiltro
+				PUSH	(r25)				; Apila dirección de SubImg rellenada
+				bsr		ValorPixel			; Salto incondicional a ValorPixel
+				POP		(r25)				; Desapila dirección de SubImg rellenada
+				POP		(r07)				; Desapila dirección de MFiltro
+				or 		r30,r31,r0			; Restaura el puntero de pila al valor del puntero de marco
+				POP		(r31)
+				add		r08,r0,r0			; Contador = 0
+				add		r09,r0,r0			; Peso = 0
+PesoMFiltro:	add		r08,r08,1			; Contador++
+				ld		r10,r07,r0			; Carga elemento MFiltro
+				add		r09,r09,r10			; Peso = Peso + elemento MFiltro
+				add		r07,r07,4			; Dirección MFiltro++
+				cmp		r22,r08,9			; ¿Contador == 9?
+				bb0		2,r22,PesoMFiltro	; Salto condicional a PesoMFiltro
+				cmp		r22,r09,0			; ¿Peso == 0?
+				bb1		2,r22,Comp0255		; Salto condicional a Comp0255
+				divs	r29,r29,r09			; r29 = r29/Peso
+Comp0255:		cmp		r22,r29,0			; ¿r29 < 0?
+				bb1		6,r22,Ajusta0		; Salto condicional a Ajusta0
+				cmp		r22,r29,255			; ¿r29 > 255?
+				bb0		gt,r22,FinFilPixel	; Salto condicional a FinPixel
+Ajusta255:		add		r29,r0,255			; r29 = 255
+				bsr		FinFilPixel
+Ajusta0:		or 		r29,r0,r0			; r29 = 0
+FinFilPixel:	POP		(r1)
+				jmp		(r1)
+				
+	
+; Subrutina: Filtro
+;
+
+Filtro:			PUSH	(r1)
+				ld		r02,r30,4			; Carga dirección de M(Imagen)
+				add		r03,r02,4			; Carga dirección de N(Imagen)
+				add		r04,r02,8			; Carga dirección de MxN(Imagen)
+				ld		r05,r30,8			; Carga dirección de M(ImFiltrada)
+				add		r06,r05,4			; Carga dirección de N(ImFiltrada)
+				add		r07,r05,8			; Carga dirección de MxN(ImFiltrada)
+				ld		r08,r30,12			; Carga dirección de MFiltro
+				ld		r11,r02,r0			; Carga valor M(Imagen)
+				ld		r12,r03,r0			; Carga valor N(Imagen)
+				st		r11,r05,r0			; Guarda valor M(Imagen) en M(ImFiltrada)
+				st		r12,r06,r0			; Guarda valor N(Imagen) en N(ImFiltrada)
+				sub		r11,r11,1			; Carga valor M-1(Imagen)
+				sub		r12,r12,1			; Carga valor N-1(Imagen)
+				add		r09,r0,r0			; i=0
+				add		r10,r0,r0			; j=0
+BucleFiltro:	PUSH	(r12)				; Apilar N-1
+				PUSH	(r11)				; Apilar M-1
+				PUSH	(r07)				; Apilar dirección ImFiltrada
+				PUSH	(r08)				; Apilar MFiltro
+				PUSH	(r10)				; Apilar j
+				PUSH	(r09)				; Apilar i
+				PUSH	(r02)				; Apilar Imagen
+				bsr		FilPixel			; Salto incondicional a FilPixel
+				POP		(r02)				; Desapila Imagen
+				POP		(r09)				; Desapila i
+				POP		(r10)				; Desapila j
+				POP		(r08)				; Desapila MFiltro
+				POP		(r07)				; Desapilar dirección ImFiltrada
+				POP		(r11)				; Desapilar M-1
+				POP		(r12)				; Desapilar N-1
+				st.b	r29,r07,r0			; Elemento ImFiltrada = FilPixel(Imagen,i,j,MFiltro)
+				add		r07,r07,1			; Dirección ImFiltrada+1
+				cmp		r22,r10,r12			; ¿j < N-1?
+				add		r10,r10,1			; j++
+				bb1		6,r22,BucleFiltro	; Salto condicional a BucleFiltro
+				add		r10,r0,r0			; j=0
+				cmp		r22,r09,r11			; ¿i < M-1?
+				add		r09,r09,1			; i++
+				bb1		6,r22,BucleFiltro	; Salto condicional a BucleFiltro
+FinFiltro:		POP		(r1)
+				jmp		(r1)
+				
+				
+; Subrutina: FiltRec
+;
+
+FiltRec:		add		r28,r28,1
+				PUSH	(r1)
+				ld		r02,r30,4			; Carga dirección de M(ImagenIn)
+				add		r03,r02,4			; Carga dirección de N(ImagenIn)
+				add		r04,r02,8			; Carga dirección de MxN(ImagenIn)
+				ld		r05,r30,8			; Carga dirección de M(ImagenOut)
+				add		r06,r05,4			; Carga dirección de N(ImagenOut)
+				add		r07,r05,8			; Carga dirección de MxN(ImagenOut)
+				ld		r08,r30,12			; Carga dirección de MFiltro
+				ld		r09,r30,16			; Carga dirección de numerador de ModMFiltro
+				ld		r10,r30,20			; Carga valor de NCambios
+				ld		r11,r02,r0			; Carga valor de M (ImagenIn)
+				ld		r12,r03,r0			; Carga valor de N (ImagenIn)
+				mulu	r11,r11,r12			; M*N
+				add		r11,r11,8			; 4+4+M*N
+Bucle1FR:		divs	r13,r11,4			; Bucle1FR determina si es múltiplo
+				mulu	r14,r13,4			; de cuatro, y en caso contrario se
+				subu	r14,r11,r14			; ajusta en exceso hasta el siguiente	
+				cmp		r22,r14,0			; múltiplo de 14
+				bb1		2,r22,MarcoPila
+				add		r11,r11,1
+				bsr 	Bucle1FR
+MarcoPila:		PUSH	(r31)				; Guarda puntero a marco de pila del llamante
+				or 		r31,r30,r0			; Crea nuevo marco de pila
+				sub		r30,r30,r11			; Reserva espacio para ImagenTmp
+				add		r25,r30,r0			; Guarda posición memoria ImagenTmp
+				PUSH	(r25)				; Apila ImagenTmp
+				PUSH	(r09)				; Apila ModMFiltro
+				PUSH	(r10)				; Apila NCambios
+				PUSH	(r08)				; Apila MFiltro	
+				PUSH	(r05)				; Apila ImagenOut
+				PUSH	(r02)				; Apila ImagenIn
+				bsr		Filtro				; Salto incondicional a Filtro
+				POP		(r02)				; Desapila ImagenIn
+				POP		(r05)				; Desapila ImagenOut
+				POP		(r08)				; Desapila MFiltro
+				POP		(r10)				; Desapila NCambios
+				POP		(r09)				; Desapila ModMFiltro
+				POP		(r25)				; Desapila ImagenTmp
+				PUSH	(r25)				; Apila ImagenTmp
+				PUSH	(r10)				; Apila NCambios
+				PUSH	(r05)				; Apila ImagenOut
+				PUSH	(r02)				; Apila ImagenIn
+				PUSH	(r09)				; Apila ModMFiltro
+				PUSH	(r08)				; Apila MFiltro	
+				bsr		ActualizaFiltro		; Salto incondicional a ActualizaFiltro
+				POP		(r08)				; Desapila MFiltro
+				POP		(r09)				; Desapila ModMFiltro
+				POP		(r02)				; Desapila ImagenIn
+				POP		(r05)				; Desapila ImagenOut
+				POP		(r10)				; Desapila NCambios
+				POP		(r25)				; Desapila ImagenTmp
+				add		r12,r0,r0			; i=0
+				add		r13,r0,r0			; j=0
+				add		r14,r05,4			; Carga dirección N
+				ld		r15,r05,0			; Carga valor M
+				ld		r16,r14,0			; Carga valor N
+				st		r15,r25,0			; M (ImagenOut) -> M (ImagenTmp)
+				st		r16,r25,4			; N (ImagenOut) -> N (ImagenTmp)
+				sub		r15,r15,1			; M-1
+				sub		r16,r16,1			; N-1
+				add		r17,r05,8			; Guarda dirección MxN (ImagenOut)
+				add		r18,r25,8			; Guarda dirección MxN (ImagenTmp)
+CopiarImgTmp:	ld.b	r19,r17,0			; Carga valor ImagenOut[i,j]
+				st.b	r19,r18,0			; ImagenOut[i,j] = ImagenTmp[i,j]
+				cmp		r22,r13,r16			; ¿j < N-1?
+				add		r13,r13,1			; j++
+				add		r17,r17,1			; Dirección ImagenOut++
+				add		r18,r18,1			; Dirección ImagenTmp++
+				bb1		6,r22,CopiarImgTmp	; Salto condicional a CopiarImg
+				add		r13,r0,r0			; j=0
+				cmp		r22,r12,r15			; ¿i < M-1?
+				add		r12,r12,1			; i++
+				bb1		6,r22,CopiarImgTmp	; Salto condicional a CopiarImg
+				add		r20,r0,-1			; oper < 0
+				PUSH	(r25)				; Apila ImagenTmp
+				PUSH	(r10)				; Apila NCambios
+				PUSH	(r05)				; Apila ImagenOut
+				PUSH	(r02)				; Apila ImagenIn
+				PUSH	(r09)				; Apila ModMFiltro
+				PUSH	(r08)				; Apila MFiltro	
+				PUSH	(r20)				; Apila oper
+				bsr 	nFiltrados			; Salto incondicional a nFiltrados
+				POP		(r20)				; Desapila oper
+				POP		(r08)				; Desapila MFiltro
+				POP		(r09)				; Desapila ModMFiltro
+				POP		(r02)				; Desapila ImagenIn
+				POP		(r05)				; Desapila ImagenOut
+				POP		(r10)				; Desapila NCambios
+				POP		(r25)				; Desapila ImagenTmp
+				cmp		r22,r29,0			; ¿NFiltrados == 0?
+				bb1		2,r22,Ajusta0FR		; Salto condicional a Ajusta0FR
+				PUSH	(r25)				; Apila ImagenTmp
+				PUSH	(r10)				; Apila NCambios
+				PUSH	(r09)				; Apila ModMFiltro
+				PUSH	(r08)				; Apila MFiltro
+				PUSH	(r05)				; Apila ImagenOut
+				PUSH	(r02)				; Apila ImagenIn
+				bsr		Comp				; Salto incondicional a Comp
+				POP		(r02)				; Desapila ImagenIn
+				POP		(r05)				; Desapila ImagenOut
+				POP		(r08)				; Desapila MFiltro
+				POP		(r09)				; Desapila ModMFiltro			
+				POP		(r10)				; Desapila NCambios
+				POP		(r25)				; Desapila ImagenTmp
+				cmp		r22,r29,r10			; ¿r29 < NCambios?
+				bb1		6,r22,FinFiltRec	; Salto condicional a Ajusta0FR
+				PUSH	(r10)				; Apila NCambios
+				PUSH	(r09)				; Apila ModMFiltro
+				PUSH	(r08)				; Apila MFiltro
+				PUSH	(r05)				; Apila ImagenOut
+				PUSH	(r25)				; Apila ImagenTmp (nueva ImagenIn)
+				bsr		FiltRec				; Salto incondicional a FiltRec
+				POP		(r25)				; Desapila ImagenTmp
+				POP		(r05)				; Desapila ImagenOut
+				POP		(r08)				; Desapila MFiltro
+				POP		(r09)				; Desapila ModMFiltro
+				POP		(r10)				; Desapila NCambios
+				bsr		FinFiltRec			; Salto incondicional a FinFiltRec
+Ajusta0FR:		add		r29,r0,-1			; r29 = -1
+FinFiltRec:		or 		r30,r31,r0			; Restaura el puntero de pila al valor del puntero de marco
+				POP		(r31)
+				POP		(r1)
+				jmp		(r1)
+
+				
+				
+			
+			
+			
